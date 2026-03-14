@@ -1,530 +1,1594 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TimeCalc — Add &amp; Subtract Time Durations</title>
-<meta name="description" content="A free browser extension to add and subtract time durations with natural language input and smart output modes — clock, natural, work, hours, and more.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        base:    '#eef5fd',
-        base2:   '#ddeaf8',
-        panel:   '#ffffff',
-        panel2:  '#f3f8fe',
-        line:    '#cce0f5',
-        line2:   '#b3cfe8',
-        blue: { DEFAULT: '#3b9efa', dk: '#1a80e0', lt: '#dbeeff' },
-        red:     '#f05574',
-        success: '#22c55e',
-        amber:   '#f59e0b',
-        purple:  '#8b5cf6',
-        ink: { DEFAULT: '#0d1f35', 2: '#2f4a65', muted: '#6a8faa', faint: '#a0bed5' },
-      },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'Courier New', 'monospace'],
-      },
-      maxWidth: { content: '1080px' },
-      boxShadow: {
-        card:  '0 4px 24px rgba(13,31,53,0.09), 0 1px 6px rgba(13,31,53,0.05)',
-        lg:    '0 12px 48px rgba(13,31,53,0.12), 0 3px 12px rgba(13,31,53,0.06)',
-        blue:  '0 6px 28px rgba(59,158,250,0.32)',
-        'blue-sm': '0 4px 18px rgba(59,158,250,0.28)',
-        btn:   '0 3px 12px rgba(59,158,250,0.35)',
-      },
-    }
-  }
-}
-</script>
-<style>
-  html { scroll-behavior: smooth; }
-  .dot-grid {
-    background-image: radial-gradient(circle, #b3cfe8 1.2px, transparent 1.2px);
-    background-size: 28px 28px;
-  }
-  .blob { filter: blur(80px); }
-  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
-  .animate-pulse-dot { animation: pulse-dot 2s infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-</style>
-</head>
-<body class="bg-base text-ink font-sans leading-relaxed overflow-x-hidden">
-
-<!-- Background decorations -->
-<div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-  <div class="blob absolute rounded-full opacity-50 w-[700px] h-[700px] -top-[200px] -left-[150px]"
-       style="background: radial-gradient(circle, #b3d9ff 0%, transparent 70%);"></div>
-  <div class="blob absolute rounded-full opacity-50 w-[500px] h-[500px] -bottom-[100px] -right-[100px]"
-       style="background: radial-gradient(circle, #c4b5fd 0%, transparent 70%);"></div>
-  <div class="blob absolute rounded-full opacity-50 w-[400px] h-[400px] top-1/2 left-[55%]"
-       style="background: radial-gradient(circle, #bfecff 0%, transparent 70%);"></div>
-</div>
-<div class="dot-grid fixed inset-0 z-0 pointer-events-none opacity-40"></div>
-
-<!-- Nav -->
-<nav class="sticky top-0 z-[100] bg-[rgba(238,245,253,0.88)] backdrop-blur-md border-b border-line">
-  <div class="max-w-content mx-auto px-6 flex items-center justify-between h-[60px]">
-    <a href="#" class="flex items-center gap-[10px] no-underline">
-      <div class="w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center text-base shadow-blue"
-           style="background: linear-gradient(140deg, #3b9efa, #1a80e0);">⏱</div>
-      <span class="text-[1.1rem] font-bold tracking-[-0.04em] text-ink">Time<em class="not-italic text-blue">Calc</em></span>
-    </a>
-    <div class="flex items-center gap-[6px]">
-      <a href="#features" class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel">Features</a>
-      <a href="#formats"  class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel">Formats</a>
-      <a href="#modes"    class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel">Output Modes</a>
-      <a href="privacy.html" class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel">Privacy</a>
-      <a href="#install"
-         class="text-[0.82rem] font-semibold text-white no-underline px-4 py-[7px] rounded-full shadow-btn transition-all duration-150 hover:shadow-[0_5px_18px_rgba(59,158,250,0.48)] hover:-translate-y-px"
-         style="background: linear-gradient(135deg, #3b9efa, #1a80e0);">⚡ Install Free</a>
-    </div>
-  </div>
-</nav>
-
-<!-- Hero -->
-<section class="relative z-[1] pt-[100px] pb-[80px] sm:pt-[70px] sm:pb-[60px] text-center">
-  <div class="max-w-content mx-auto px-6">
-    <div class="inline-flex items-center gap-[6px] text-[0.72rem] font-semibold tracking-[0.06em] uppercase text-blue bg-blue-lt border border-blue/30 px-[14px] py-[5px] rounded-full mb-6">
-      <span class="animate-pulse-dot w-[6px] h-[6px] rounded-full bg-blue inline-block"></span>
-      Free Browser Extension
-    </div>
-    <h1 class="text-[clamp(2.4rem,5vw,3.8rem)] font-extrabold tracking-[-0.045em] leading-[1.1] text-ink mb-5">
-      Add &amp; subtract<br>time <em class="not-italic text-blue">instantly</em>
-    </h1>
-    <p class="text-[clamp(1rem,2vw,1.15rem)] text-ink-muted max-w-[560px] mx-auto mb-10 font-normal">
-      Natural language input, smart output modes, and keyboard-first design —
-      everything you need to work with time durations right from your browser.
-    </p>
-    <div class="flex gap-3 justify-center flex-wrap mb-4">
-      <a class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-white no-underline rounded-full px-7 py-[14px] shadow-blue transition-all duration-150 hover:shadow-[0_8px_28px_rgba(59,158,250,0.48)] hover:-translate-y-0.5"
-         style="background: linear-gradient(135deg, #3b9efa, #1a80e0);"
-         href="#install" id="install">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 6l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Install for Brave / Chrome
-      </a>
-      <a class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-ink-2 no-underline bg-panel border-[1.5px] border-line2 rounded-full px-7 py-[13px] shadow-card transition-all duration-150 hover:border-blue hover:-translate-y-0.5"
-         href="#features">See features</a>
-      <a class="inline-flex items-center gap-2 text-[0.95rem] font-semibold no-underline rounded-full px-7 py-[13px] border-[1.5px] transition-all duration-150 hover:-translate-y-0.5"
-         style="color:#3b9efa; border-color:#3b9efa; background:rgba(59,158,250,0.06);"
-         href="app.html">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        Try it online
-      </a>
-    </div>
-    <p class="text-[0.72rem] text-ink-faint">Free · No account · No data collected</p>
-
-    <!-- Mockup -->
-    <div class="mt-[60px] mx-auto max-w-[460px] relative">
-      <div class="absolute inset-[-40px] rounded-full pointer-events-none"
-           style="background: radial-gradient(ellipse, rgba(59,158,250,0.18) 0%, transparent 70%);"></div>
-      <div class="relative bg-panel border-[1.5px] border-line rounded-[18px] shadow-lg p-[18px] font-mono">
-        <!-- Window dots -->
-        <div class="flex gap-[6px] mb-4">
-          <div class="w-[10px] h-[10px] rounded-full bg-red"></div>
-          <div class="w-[10px] h-[10px] rounded-full bg-amber"></div>
-          <div class="w-[10px] h-[10px] rounded-full bg-success"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>TimeCalc — Add &amp; Subtract Time Durations</title>
+        <meta
+            name="description"
+            content="A free browser extension to add and subtract time durations with natural language input and smart output modes — clock, natural, work, hours, and more."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            base: "#eef5fd",
+                            base2: "#ddeaf8",
+                            panel: "#ffffff",
+                            panel2: "#f3f8fe",
+                            line: "#cce0f5",
+                            line2: "#b3cfe8",
+                            blue: {
+                                DEFAULT: "#3b9efa",
+                                dk: "#1a80e0",
+                                lt: "#dbeeff",
+                            },
+                            red: "#f05574",
+                            success: "#22c55e",
+                            amber: "#f59e0b",
+                            purple: "#8b5cf6",
+                            ink: {
+                                DEFAULT: "#0d1f35",
+                                2: "#2f4a65",
+                                muted: "#6a8faa",
+                                faint: "#a0bed5",
+                            },
+                        },
+                        fontFamily: {
+                            sans: ["Inter", "system-ui", "sans-serif"],
+                            mono: [
+                                '"JetBrains Mono"',
+                                "Courier New",
+                                "monospace",
+                            ],
+                        },
+                        maxWidth: { content: "1080px" },
+                        boxShadow: {
+                            card: "0 4px 24px rgba(13,31,53,0.09), 0 1px 6px rgba(13,31,53,0.05)",
+                            lg: "0 12px 48px rgba(13,31,53,0.12), 0 3px 12px rgba(13,31,53,0.06)",
+                            blue: "0 6px 28px rgba(59,158,250,0.32)",
+                            "blue-sm": "0 4px 18px rgba(59,158,250,0.28)",
+                            btn: "0 3px 12px rgba(59,158,250,0.35)",
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            html {
+                scroll-behavior: smooth;
+            }
+            .dot-grid {
+                background-image: radial-gradient(
+                    circle,
+                    #b3cfe8 1.2px,
+                    transparent 1.2px
+                );
+                background-size: 28px 28px;
+            }
+            .blob {
+                filter: blur(80px);
+            }
+            @keyframes pulse-dot {
+                0%,
+                100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 0.5;
+                    transform: scale(0.85);
+                }
+            }
+            .animate-pulse-dot {
+                animation: pulse-dot 2s infinite;
+            }
+            @keyframes blink {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0;
+                }
+            }
+        </style>
+    </head>
+    <body class="bg-base text-ink font-sans leading-relaxed overflow-x-hidden">
+        <!-- Background decorations -->
+        <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+            <div
+                class="blob absolute rounded-full opacity-50 w-[700px] h-[700px] -top-[200px] -left-[150px]"
+                style="
+                    background: radial-gradient(
+                        circle,
+                        #b3d9ff 0%,
+                        transparent 70%
+                    );
+                "
+            ></div>
+            <div
+                class="blob absolute rounded-full opacity-50 w-[500px] h-[500px] -bottom-[100px] -right-[100px]"
+                style="
+                    background: radial-gradient(
+                        circle,
+                        #c4b5fd 0%,
+                        transparent 70%
+                    );
+                "
+            ></div>
+            <div
+                class="blob absolute rounded-full opacity-50 w-[400px] h-[400px] top-1/2 left-[55%]"
+                style="
+                    background: radial-gradient(
+                        circle,
+                        #bfecff 0%,
+                        transparent 70%
+                    );
+                "
+            ></div>
         </div>
-        <!-- Tabs -->
-        <div class="flex gap-[5px] mb-[14px] flex-wrap">
-          <div class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-blue bg-blue text-white shadow-[0_2px_8px_rgba(59,158,250,0.4)]">⏱ Clock</div>
-          <div class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted">📅 Natural</div>
-          <div class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted">💼 Work</div>
-          <div class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted">🔢 Hours</div>
-          <div class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted">🔬 All</div>
+        <div
+            class="dot-grid fixed inset-0 z-0 pointer-events-none opacity-40"
+        ></div>
+
+        <!-- Nav -->
+        <nav
+            class="sticky top-0 z-[100] bg-[rgba(238,245,253,0.88)] backdrop-blur-md border-b border-line"
+        >
+            <div
+                class="max-w-content mx-auto px-6 flex items-center justify-between h-[60px]"
+            >
+                <a href="#" class="flex items-center gap-[10px] no-underline">
+                    <div
+                        class="w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center text-base shadow-blue"
+                        style="
+                            background: linear-gradient(
+                                140deg,
+                                #3b9efa,
+                                #1a80e0
+                            );
+                        "
+                    >
+                        ⏱
+                    </div>
+                    <span
+                        class="text-[1.1rem] font-bold tracking-[-0.04em] text-ink"
+                        >Time<em class="not-italic text-blue">Calc</em></span
+                    >
+                </a>
+                <div class="flex items-center gap-[6px]">
+                    <a
+                        href="#features"
+                        class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel"
+                        >Features</a
+                    >
+                    <a
+                        href="#formats"
+                        class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel"
+                        >Formats</a
+                    >
+                    <a
+                        href="#modes"
+                        class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel"
+                        >Output Modes</a
+                    >
+                    <a
+                        href="privacy.html"
+                        class="hidden sm:block text-[0.82rem] font-medium text-ink-muted no-underline px-3 py-1.5 rounded-lg transition-colors duration-150 hover:text-ink hover:bg-panel"
+                        >Privacy</a
+                    >
+                    <a
+                        href="#install"
+                        class="text-[0.82rem] font-semibold text-white no-underline px-4 py-[7px] rounded-full shadow-btn transition-all duration-150 hover:shadow-[0_5px_18px_rgba(59,158,250,0.48)] hover:-translate-y-px"
+                        style="
+                            background: linear-gradient(
+                                135deg,
+                                #3b9efa,
+                                #1a80e0
+                            );
+                        "
+                        >⚡ Install Free</a
+                    >
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero -->
+        <section
+            class="relative z-[1] pt-[100px] pb-[80px] sm:pt-[70px] sm:pb-[60px] text-center"
+        >
+            <div class="max-w-content mx-auto px-6">
+                <div
+                    class="inline-flex items-center gap-[6px] text-[0.72rem] font-semibold tracking-[0.06em] uppercase text-blue bg-blue-lt border border-blue/30 px-[14px] py-[5px] rounded-full mb-6"
+                >
+                    <span
+                        class="animate-pulse-dot w-[6px] h-[6px] rounded-full bg-blue inline-block"
+                    ></span>
+                    Free Browser Extension
+                </div>
+                <h1
+                    class="text-[clamp(2.4rem,5vw,3.8rem)] font-extrabold tracking-[-0.045em] leading-[1.1] text-ink mb-5"
+                >
+                    Add &amp; subtract<br />time
+                    <em class="not-italic text-blue">instantly</em>
+                </h1>
+                <p
+                    class="text-[clamp(1rem,2vw,1.15rem)] text-ink-muted max-w-[560px] mx-auto mb-10 font-normal"
+                >
+                    Natural language input, smart output modes, and
+                    keyboard-first design — everything you need to work with
+                    time durations right from your browser.
+                </p>
+                <div class="flex gap-3 justify-center flex-wrap mb-4">
+                    <a
+                        class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-white no-underline rounded-full px-7 py-[14px] shadow-blue transition-all duration-150 hover:shadow-[0_8px_28px_rgba(59,158,250,0.48)] hover:-translate-y-0.5"
+                        style="
+                            background: linear-gradient(
+                                135deg,
+                                #3b9efa,
+                                #1a80e0
+                            );
+                        "
+                        href="#install"
+                        id="install"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                        >
+                            <path
+                                d="M8 1v9M4 6l4 4 4-4M2 13h12"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                        Install for Brave / Chrome
+                    </a>
+                    <a
+                        class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-ink-2 no-underline bg-panel border-[1.5px] border-line2 rounded-full px-7 py-[13px] shadow-card transition-all duration-150 hover:border-blue hover:-translate-y-0.5"
+                        href="#features"
+                        >See features</a
+                    >
+                    <a
+                        class="inline-flex items-center gap-2 text-[0.95rem] font-semibold no-underline rounded-full px-7 py-[13px] border-[1.5px] transition-all duration-150 hover:-translate-y-0.5"
+                        style="
+                            color: #3b9efa;
+                            border-color: #3b9efa;
+                            background: rgba(59, 158, 250, 0.06);
+                        "
+                        href="app.html"
+                    >
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                        >
+                            <rect
+                                x="2"
+                                y="2"
+                                width="12"
+                                height="12"
+                                rx="3"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                            />
+                            <path
+                                d="M8 5v6M5 8h6"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                            />
+                        </svg>
+                        Try it online
+                    </a>
+                </div>
+                <p class="text-[0.72rem] text-ink-faint">
+                    Free · No account · No data collected
+                </p>
+
+                <!-- Mockup -->
+                <div class="mt-[60px] mx-auto max-w-[460px] relative">
+                    <div
+                        class="absolute inset-[-40px] rounded-full pointer-events-none"
+                        style="
+                            background: radial-gradient(
+                                ellipse,
+                                rgba(59, 158, 250, 0.18) 0%,
+                                transparent 70%
+                            );
+                        "
+                    ></div>
+                    <div
+                        class="relative bg-panel border-[1.5px] border-line rounded-[18px] shadow-lg p-[18px] font-mono"
+                    >
+                        <!-- Window dots -->
+                        <div class="flex gap-[6px] mb-4">
+                            <div
+                                class="w-[10px] h-[10px] rounded-full bg-red"
+                            ></div>
+                            <div
+                                class="w-[10px] h-[10px] rounded-full bg-amber"
+                            ></div>
+                            <div
+                                class="w-[10px] h-[10px] rounded-full bg-success"
+                            ></div>
+                        </div>
+                        <!-- Tabs -->
+                        <div class="flex gap-[5px] mb-[14px] flex-wrap">
+                            <div
+                                class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-blue bg-blue text-white shadow-[0_2px_8px_rgba(59,158,250,0.4)]"
+                            >
+                                ⏱ Clock
+                            </div>
+                            <div
+                                class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted"
+                            >
+                                📅 Natural
+                            </div>
+                            <div
+                                class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted"
+                            >
+                                💼 Work
+                            </div>
+                            <div
+                                class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted"
+                            >
+                                🔢 Hours
+                            </div>
+                            <div
+                                class="text-[0.62rem] font-sans font-medium px-[10px] py-[3px] rounded-full border-[1.5px] border-line2 bg-panel2 text-ink-muted"
+                            >
+                                🔬 All
+                            </div>
+                        </div>
+                        <!-- Expression -->
+                        <div
+                            class="bg-panel2 border-[1.5px] border-line rounded-[10px] px-3 py-[10px] flex items-center gap-[6px] flex-wrap mb-[10px] min-h-[44px]"
+                        >
+                            <span
+                                class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]"
+                                >3.23.44</span
+                            >
+                            <span class="text-base font-bold text-blue">+</span>
+                            <span
+                                class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]"
+                                >1h 30m</span
+                            >
+                            <span class="text-base font-bold text-red">−</span>
+                            <span
+                                class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]"
+                                >45m</span
+                            >
+                            <span
+                                class="text-base font-bold text-blue opacity-[0.28]"
+                                >+</span
+                            >
+                        </div>
+                        <!-- Input row -->
+                        <div class="flex gap-[6px] mb-2">
+                            <div
+                                class="flex-1 bg-panel border-[1.5px] border-line rounded-lg px-[10px] py-2 text-[0.8rem] text-ink-2"
+                            >
+                                2h 30m
+                            </div>
+                            <div
+                                class="w-9 h-9 rounded-lg border-[1.5px] border-line bg-panel text-[1.1rem] font-bold flex items-center justify-center text-blue"
+                            >
+                                +
+                            </div>
+                            <div
+                                class="w-9 h-9 rounded-lg border-[1.5px] border-line bg-panel text-[1.1rem] font-bold flex items-center justify-center text-red"
+                            >
+                                −
+                            </div>
+                        </div>
+                        <!-- Actions -->
+                        <div class="flex gap-[5px] mb-3">
+                            <button
+                                class="flex-1 text-white rounded-lg py-2 text-[0.78rem] font-semibold font-sans border-none"
+                                style="
+                                    background: linear-gradient(
+                                        135deg,
+                                        #3b9efa,
+                                        #1a80e0
+                                    );
+                                "
+                            >
+                                = Calculate
+                            </button>
+                            <div
+                                class="w-9 bg-panel2 border-[1.5px] border-line rounded-lg text-[0.78rem] flex items-center justify-center"
+                            >
+                                ↩
+                            </div>
+                            <div
+                                class="px-[10px] bg-panel2 border-[1.5px] border-line rounded-lg text-[0.78rem] flex items-center text-ink-muted"
+                            >
+                                Clear
+                            </div>
+                        </div>
+                        <!-- Result -->
+                        <div
+                            class="bg-panel border-[1.5px] border-line rounded-xl p-[14px]"
+                        >
+                            <div
+                                class="inline-block text-[0.52rem] font-bold uppercase tracking-[0.1em] text-blue bg-blue-lt border border-blue/25 px-2 py-[2px] rounded-full mb-[6px] font-sans"
+                            >
+                                Result
+                            </div>
+                            <div
+                                class="text-[2rem] font-semibold text-blue tracking-[-0.02em] mb-[10px]"
+                            >
+                                4.08.44
+                            </div>
+                            <div class="grid grid-cols-3 gap-1">
+                                <div
+                                    class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"
+                                >
+                                    <div
+                                        class="text-[0.82rem] font-semibold text-ink"
+                                    >
+                                        4
+                                    </div>
+                                    <div
+                                        class="text-[0.5rem] text-ink-muted font-sans"
+                                    >
+                                        hours
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"
+                                >
+                                    <div
+                                        class="text-[0.82rem] font-semibold text-ink"
+                                    >
+                                        8
+                                    </div>
+                                    <div
+                                        class="text-[0.5rem] text-ink-muted font-sans"
+                                    >
+                                        minutes
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"
+                                >
+                                    <div
+                                        class="text-[0.82rem] font-semibold text-ink"
+                                    >
+                                        44
+                                    </div>
+                                    <div
+                                        class="text-[0.5rem] text-ink-muted font-sans"
+                                    >
+                                        seconds
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"
+                                >
+                                    <div
+                                        class="text-[0.82rem] font-semibold text-ink"
+                                    >
+                                        248
+                                    </div>
+                                    <div
+                                        class="text-[0.5rem] text-ink-muted font-sans"
+                                    >
+                                        total mins
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"
+                                >
+                                    <div
+                                        class="text-[0.82rem] font-semibold text-ink"
+                                    >
+                                        14924
+                                    </div>
+                                    <div
+                                        class="text-[0.5rem] text-ink-muted font-sans"
+                                    >
+                                        total secs
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section id="features" class="relative z-[1] py-[90px] sm:py-[60px]">
+            <div class="max-w-content mx-auto px-6">
+                <div
+                    class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]"
+                >
+                    Features
+                </div>
+                <h2
+                    class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]"
+                >
+                    Everything you need<br />for time arithmetic
+                </h2>
+                <p class="text-base text-ink-muted max-w-[500px] mb-12">
+                    Built for developers, project managers, freelancers, and
+                    anyone who works with time.
+                </p>
+                <div
+                    class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5"
+                >
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-blue/[0.12]"
+                        >
+                            ⏱
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            Multi-operand Calculator
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Chain multiple time values with + and − operators.
+                            Build complex expressions step by step and see the
+                            full equation before calculating.
+                        </p>
+                    </div>
+
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-success/[0.12]"
+                        >
+                            💬
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            Natural Language Input
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Type <strong>3h 23m 44s</strong>,
+                            <strong>1d 4h</strong>, or
+                            <strong>2y 3mo 1w</strong> — no rigid format
+                            required. Mix and match any supported units freely.
+                        </p>
+                    </div>
+
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-amber/[0.12]"
+                        >
+                            💼
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            Work Time Mode
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Instantly convert durations to work days, weeks, and
+                            months using an 8h/day · 5d/week · 160h/month
+                            reference — perfect for billing.
+                        </p>
+                    </div>
+
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-purple/[0.12]"
+                        >
+                            🔢
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            5 Output Modes
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Switch between Clock, Natural, Work, Hours-only, and
+                            All-formats views. Your preferred mode is saved
+                            automatically across sessions.
+                        </p>
+                    </div>
+
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-red/[0.12]"
+                        >
+                            ⌨️
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            Keyboard First
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Press
+                            <kbd
+                                class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                                >+</kbd
+                            >
+                            to commit and add,
+                            <kbd
+                                class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                                >−</kbd
+                            >
+                            to subtract,
+                            <kbd
+                                class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                                >Enter</kbd
+                            >
+                            to calculate,
+                            <kbd
+                                class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                                >⌫</kbd
+                            >
+                            to undo, and
+                            <kbd
+                                class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                                >Esc</kbd
+                            >
+                            to clear — never touch the mouse.
+                        </p>
+                    </div>
+
+                    <div
+                        class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg"
+                    >
+                        <div
+                            class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-[rgba(20,184,166,0.12)]"
+                        >
+                            🛡️
+                        </div>
+                        <h3
+                            class="text-base font-bold text-ink tracking-[-0.02em] mb-2"
+                        >
+                            Fully Private
+                        </h3>
+                        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">
+                            Zero data collection. No network requests. Your mode
+                            preference is stored locally in your browser only.
+                            No accounts, no tracking, ever.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Input Formats -->
+        <section
+            id="formats"
+            class="relative z-[1] py-[90px] sm:py-[60px] bg-panel border-t border-b border-line"
+        >
+            <div class="max-w-content mx-auto px-6">
+                <div class="text-center">
+                    <div
+                        class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]"
+                    >
+                        Input Formats
+                    </div>
+                    <h2
+                        class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]"
+                    >
+                        Type it your way
+                    </h2>
+                    <p
+                        class="text-base text-ink-muted max-w-[500px] mx-auto mb-[52px] text-center"
+                    >
+                        TimeCalc accepts three flexible input styles. Use
+                        whichever feels natural.
+                    </p>
+                </div>
+                <div
+                    class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4"
+                >
+                    <div
+                        class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue"
+                    >
+                        <h4
+                            class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]"
+                        >
+                            Dot / Colon format
+                        </h4>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >3.23.44</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >3h 23m 44s</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >1:30:00</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >1h 30m</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >0.90</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >1h 30m</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >2.5</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >2h 5m</span
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue"
+                    >
+                        <h4
+                            class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]"
+                        >
+                            Natural language
+                        </h4>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >3h 23m 44s</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >3h 23m 44s</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >2h30m</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >2h 30m</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >1d 4h 30m</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >1d 4h 30m</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center text-[0.82rem]"
+                        >
+                            <span class="font-mono text-ink font-medium"
+                                >2y 3mo 1w</span
+                            ><span class="text-ink-faint text-[0.75rem]">→</span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >2y 3mo 1w</span
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue"
+                    >
+                        <h4
+                            class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]"
+                        >
+                            Units accepted
+                        </h4>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >y</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >yr</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >year</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >years</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >mo</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >month</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >months</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >w</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >wk</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >week</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >weeks</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >d</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >day</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >days</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >h</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >hr</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >hour</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >hours</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center mb-[6px] text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >m</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >min</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >minutes</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between items-center text-[0.82rem]"
+                        >
+                            <span class="space-x-1"
+                                ><code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >s</code
+                                >
+                                <code
+                                    class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded"
+                                    >sec</code
+                                ></span
+                            ><span class="text-ink-muted text-[0.78rem]"
+                                >seconds</span
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Output Modes -->
+        <section id="modes" class="relative z-[1] py-[90px] sm:py-[60px]">
+            <div class="max-w-content mx-auto px-6">
+                <div class="text-center">
+                    <div
+                        class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]"
+                    >
+                        Output Modes
+                    </div>
+                    <h2
+                        class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]"
+                    >
+                        See results the way you need
+                    </h2>
+                    <p
+                        class="text-base text-ink-muted max-w-[500px] mx-auto mb-[52px] text-center"
+                    >
+                        Switch output format with one click. Your choice is
+                        remembered for next time.
+                    </p>
+                </div>
+                <div
+                    class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[14px]"
+                >
+                    <div
+                        class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5"
+                    >
+                        <div
+                            class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-blue/[0.12] text-blue border border-blue/25"
+                        >
+                            ⏱ Clock
+                        </div>
+                        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">
+                            Clock format
+                        </h3>
+                        <p
+                            class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]"
+                        >
+                            H.MM.SS — hours can exceed 24. Best for countdowns
+                            and timers.
+                        </p>
+                        <div
+                            class="font-mono text-[0.88rem] font-semibold text-blue"
+                        >
+                            4.08.44
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5"
+                    >
+                        <div
+                            class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-success/[0.12] text-success border border-success/25"
+                        >
+                            📅 Natural
+                        </div>
+                        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">
+                            Natural breakdown
+                        </h3>
+                        <p
+                            class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]"
+                        >
+                            Years, months, weeks, days, hours, minutes.
+                            Human-readable at a glance.
+                        </p>
+                        <div
+                            class="font-mono text-[0.88rem] font-semibold text-success"
+                        >
+                            3 days 2 hours 15 mins
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5"
+                    >
+                        <div
+                            class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-amber/[0.12] text-amber border border-amber/25"
+                        >
+                            💼 Work
+                        </div>
+                        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">
+                            Work time
+                        </h3>
+                        <p
+                            class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]"
+                        >
+                            8h/day · 5d/week · 160h/month. Ideal for billing,
+                            project estimation.
+                        </p>
+                        <div
+                            class="font-mono text-[0.88rem] font-semibold text-amber"
+                        >
+                            2 work days 4 hours
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5"
+                    >
+                        <div
+                            class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-purple/[0.12] text-purple border border-purple/25"
+                        >
+                            🔢 Hours
+                        </div>
+                        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">
+                            Hours only
+                        </h3>
+                        <p
+                            class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]"
+                        >
+                            Total hours as a decimal. Great for timesheets and
+                            spreadsheets.
+                        </p>
+                        <div
+                            class="font-mono text-[0.88rem] font-semibold text-purple"
+                        >
+                            20.1458 hours
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5"
+                    >
+                        <div
+                            class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-ink-2/[0.1] text-ink-2 border border-ink-2/20"
+                        >
+                            🔬 All
+                        </div>
+                        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">
+                            All formats
+                        </h3>
+                        <p
+                            class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]"
+                        >
+                            Every output side by side — clock, natural, work,
+                            hours, totals, and more.
+                        </p>
+                        <div
+                            class="font-mono text-[0.72rem] font-semibold text-ink-2 leading-[1.7]"
+                        >
+                            Clock · Natural · Work · Hours…
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Keyboard Shortcuts -->
+        <section
+            id="keyboard"
+            class="relative z-[1] py-[90px] sm:py-[60px] text-center bg-panel border-t border-b border-line"
+        >
+            <div class="max-w-content mx-auto px-6">
+                <div
+                    class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]"
+                >
+                    Keyboard Shortcuts
+                </div>
+                <h2
+                    class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]"
+                >
+                    Built for speed
+                </h2>
+                <p
+                    class="text-base text-ink-muted max-w-[500px] mx-auto mb-0 text-center"
+                >
+                    Open TimeCalc with
+                    <kbd
+                        class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                        >Ctrl+Shift+T</kbd
+                    >
+                    (or
+                    <kbd
+                        class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                        >⌘⇧T</kbd
+                    >
+                    on Mac), then calculate without leaving the keyboard.
+                </p>
+                <div class="flex flex-wrap gap-3 justify-center mt-10">
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >+</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Commit current value &amp; set add mode</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >−</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Set subtract mode</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >Enter</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Calculate result</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >⌫</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Undo last entry &amp; restore to input</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >Esc</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Clear everything</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >=</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Calculate (alternate key)</span
+                        >
+                    </div>
+                    <div
+                        class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card"
+                    >
+                        <kbd
+                            class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center"
+                            >Ctrl Z</kbd
+                        >
+                        <span class="text-[0.82rem] text-ink-muted"
+                            >Undo last action</span
+                        >
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Privacy Strip -->
+        <section
+            class="relative z-[1] py-[90px] sm:py-[60px] bg-panel border-t border-b border-line"
+        >
+            <div class="max-w-content mx-auto px-6">
+                <div class="text-center mb-10">
+                    <div
+                        class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]"
+                    >
+                        Privacy
+                    </div>
+                    <h2
+                        class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15]"
+                    >
+                        Zero data collection
+                    </h2>
+                </div>
+                <div
+                    class="flex gap-8 flex-wrap justify-center items-start sm:gap-5"
+                >
+                    <div class="flex items-start gap-3 max-w-[240px]">
+                        <div
+                            class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5"
+                        >
+                            🚫
+                        </div>
+                        <div>
+                            <h4
+                                class="text-[0.88rem] font-bold text-ink mb-[3px]"
+                            >
+                                No tracking
+                            </h4>
+                            <p
+                                class="text-[0.78rem] text-ink-muted leading-[1.55]"
+                            >
+                                No analytics, no telemetry, no usage tracking of
+                                any kind.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3 max-w-[240px]">
+                        <div
+                            class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5"
+                        >
+                            📡
+                        </div>
+                        <div>
+                            <h4
+                                class="text-[0.88rem] font-bold text-ink mb-[3px]"
+                            >
+                                No network requests
+                            </h4>
+                            <p
+                                class="text-[0.78rem] text-ink-muted leading-[1.55]"
+                            >
+                                TimeCalc runs entirely offline. Nothing is ever
+                                sent to a server.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3 max-w-[240px]">
+                        <div
+                            class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5"
+                        >
+                            💾
+                        </div>
+                        <div>
+                            <h4
+                                class="text-[0.88rem] font-bold text-ink mb-[3px]"
+                            >
+                                Local storage only
+                            </h4>
+                            <p
+                                class="text-[0.78rem] text-ink-muted leading-[1.55]"
+                            >
+                                Only your output mode preference is saved — in
+                                your browser, on your device.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start gap-3 max-w-[240px]">
+                        <div
+                            class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5"
+                        >
+                            🔓
+                        </div>
+                        <div>
+                            <h4
+                                class="text-[0.88rem] font-bold text-ink mb-[3px]"
+                            >
+                                No account required
+                            </h4>
+                            <p
+                                class="text-[0.78rem] text-ink-muted leading-[1.55]"
+                            >
+                                Install and use immediately. No sign-up, no
+                                login, no email.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-8">
+                    <a
+                        href="privacy.html"
+                        class="text-[0.82rem] text-blue no-underline font-medium hover:underline"
+                        >Read the full privacy policy →</a
+                    >
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section id="cta" class="relative z-[1] py-[100px] text-center">
+            <div class="max-w-content mx-auto px-6">
+                <h2
+                    class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-3"
+                >
+                    Ready to calculate faster?
+                </h2>
+                <p
+                    class="text-base text-ink-muted max-w-[500px] mx-auto mb-9 text-center"
+                >
+                    Free forever. No sign-up. Works offline. Install in seconds.
+                </p>
+                <div class="flex gap-3 justify-center flex-wrap">
+                    <a
+                        class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-white no-underline rounded-full px-7 py-[14px] shadow-blue transition-all duration-150 hover:shadow-[0_8px_28px_rgba(59,158,250,0.48)] hover:-translate-y-0.5"
+                        style="
+                            background: linear-gradient(
+                                135deg,
+                                #3b9efa,
+                                #1a80e0
+                            );
+                        "
+                        href="#install"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                        >
+                            <path
+                                d="M8 1v9M4 6l4 4 4-4M2 13h12"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                        Install for Brave / Chrome
+                    </a>
+                    <a
+                        class="inline-flex items-center gap-2 text-[0.95rem] font-semibold no-underline rounded-full px-7 py-[13px] border-[1.5px] transition-all duration-150 hover:-translate-y-0.5"
+                        style="
+                            color: #3b9efa;
+                            border-color: #3b9efa;
+                            background: rgba(59, 158, 250, 0.06);
+                        "
+                        href="app.html"
+                    >
+                        <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                        >
+                            <rect
+                                x="2"
+                                y="2"
+                                width="12"
+                                height="12"
+                                rx="3"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                            />
+                            <path
+                                d="M8 5v6M5 8h6"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                            />
+                        </svg>
+                        Try it online
+                    </a>
+                </div>
+                <button
+                    id="landingDonateBtn"
+                    class="mt-7 inline-flex items-center gap-2 text-[0.9rem] font-semibold rounded-full px-6 py-3 border-2 border-amber transition-all duration-150 hover:bg-amber hover:text-white hover:-translate-y-0.5"
+                    style="color: #f59e0b; background: rgba(245, 158, 11, 0.06)"
+                >
+                    ☕ Buy me a coffee
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-panel border-t border-line py-9">
+            <div
+                class="max-w-content mx-auto px-6 flex items-center justify-between flex-wrap gap-4 sm:flex-col sm:text-center"
+            >
+                <a href="#" class="flex items-center gap-2 no-underline">
+                    <div
+                        class="w-7 h-7 rounded-[7px] flex items-center justify-center text-[0.85rem]"
+                        style="
+                            background: linear-gradient(
+                                140deg,
+                                #3b9efa,
+                                #1a80e0
+                            );
+                        "
+                    >
+                        ⏱
+                    </div>
+                    <span
+                        class="text-[0.95rem] font-bold tracking-[-0.03em] text-ink"
+                        >Time<em class="not-italic text-blue">Calc</em></span
+                    >
+                </a>
+                <div class="flex gap-5 sm:justify-center">
+                    <a
+                        href="#features"
+                        class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink"
+                        >Features</a
+                    >
+                    <a
+                        href="#modes"
+                        class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink"
+                        >Modes</a
+                    >
+                    <a
+                        href="app.html"
+                        class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink"
+                        >Try Online</a
+                    >
+                    <a
+                        href="privacy.html"
+                        class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink"
+                        >Privacy Policy</a
+                    >
+                    <a
+                        href="#cta"
+                        class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink"
+                        >☕ Support</a
+                    >
+                </div>
+                <span class="text-[0.75rem] text-ink-faint"
+                    >© 2025 TimeCalc. Free &amp; open.</span
+                >
+            </div>
+        </footer>
+
+        <!-- Donate modal -->
+        <div
+            id="donateModal"
+            class="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+            style="display: none"
+        >
+            <!-- Backdrop -->
+            <div
+                id="donateBackdrop"
+                class="absolute inset-0 bg-[#0d1f35]/40 backdrop-blur-sm opacity-0 transition-opacity duration-300"
+            ></div>
+            <!-- Panel — slides up from bottom on mobile, scale-in on desktop -->
+            <div
+                id="donatePanel"
+                class="relative w-full max-w-sm bg-[#ffffff] rounded-t-3xl sm:rounded-3xl shadow-lg px-7 py-8 flex flex-col items-center gap-4 text-center transition-all duration-[340ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+                style="transform: translateY(100%); opacity: 1"
+            >
+                <!-- Close -->
+                <button
+                    id="donateClose"
+                    class="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-[#f3f8fe] border border-[#cce0f5] text-[#6a8faa] text-[0.85rem] hover:text-[#0d1f35] transition-colors duration-150"
+                >
+                    ✕
+                </button>
+                <!-- Handle bar (mobile) -->
+                <div
+                    class="w-10 h-1 rounded-full bg-[#cce0f5] mb-1 sm:hidden"
+                ></div>
+
+                <div class="text-[2.4rem] leading-none">☕</div>
+                <h3
+                    class="text-[1.2rem] font-bold tracking-[-0.03em] text-[#0d1f35] mt-1"
+                >
+                    Support TimeCalc
+                </h3>
+                <p
+                    class="text-[0.8rem] text-[#6a8faa] leading-relaxed max-w-[220px]"
+                >
+                    If TimeCalc saves you time, consider buying me a coffee!
+                </p>
+                <img
+                    src="coffee.png"
+                    alt="UPI QR Code"
+                    width="200"
+                    height="200"
+                    class="rounded-2xl border-2 border-[#cce0f5] shadow-md"
+                />
+                <p
+                    class="text-[0.6rem] font-semibold uppercase tracking-widest text-[#a0bed5]"
+                >
+                    Scan with any UPI app
+                </p>
+                <div
+                    class="flex items-center gap-2 bg-[#f3f8fe] border border-[#cce0f5] rounded-xl px-4 py-2"
+                >
+                    <span
+                        class="font-mono text-[0.78rem] font-semibold text-[#2f4a65]"
+                        id="landingUpiId"
+                        >adiechahk@icici</span
+                    >
+                    <button
+                        id="landingCopyUpi"
+                        class="text-[0.7rem] text-[#6a8faa] hover:text-[#3b9efa] transition-colors duration-150 px-1 rounded"
+                    >
+                        ⎘ Copy
+                    </button>
+                </div>
+            </div>
         </div>
-        <!-- Expression -->
-        <div class="bg-panel2 border-[1.5px] border-line rounded-[10px] px-3 py-[10px] flex items-center gap-[6px] flex-wrap mb-[10px] min-h-[44px]">
-          <span class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]">3.23.44</span>
-          <span class="text-base font-bold text-blue">+</span>
-          <span class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]">1h 30m</span>
-          <span class="text-base font-bold text-red">−</span>
-          <span class="text-[0.82rem] font-medium bg-panel border-[1.5px] border-line rounded-[5px] px-[9px] py-[2px] text-ink shadow-[0_1px_3px_rgba(13,31,53,0.06)]">45m</span>
-          <span class="text-base font-bold text-blue opacity-[0.28]">+</span>
-        </div>
-        <!-- Input row -->
-        <div class="flex gap-[6px] mb-2">
-          <div class="flex-1 bg-panel border-[1.5px] border-line rounded-lg px-[10px] py-2 text-[0.8rem] text-ink-2">2h 30m</div>
-          <div class="w-9 h-9 rounded-lg border-[1.5px] border-line bg-panel text-[1.1rem] font-bold flex items-center justify-center text-blue">+</div>
-          <div class="w-9 h-9 rounded-lg border-[1.5px] border-line bg-panel text-[1.1rem] font-bold flex items-center justify-center text-red">−</div>
-        </div>
-        <!-- Actions -->
-        <div class="flex gap-[5px] mb-3">
-          <button class="flex-1 text-white rounded-lg py-2 text-[0.78rem] font-semibold font-sans border-none"
-                  style="background: linear-gradient(135deg, #3b9efa, #1a80e0);">= Calculate</button>
-          <div class="w-9 bg-panel2 border-[1.5px] border-line rounded-lg text-[0.78rem] flex items-center justify-center">↩</div>
-          <div class="px-[10px] bg-panel2 border-[1.5px] border-line rounded-lg text-[0.78rem] flex items-center text-ink-muted">Clear</div>
-        </div>
-        <!-- Result -->
-        <div class="bg-panel border-[1.5px] border-line rounded-xl p-[14px]">
-          <div class="inline-block text-[0.52rem] font-bold uppercase tracking-[0.1em] text-blue bg-blue-lt border border-blue/25 px-2 py-[2px] rounded-full mb-[6px] font-sans">Result</div>
-          <div class="text-[2rem] font-semibold text-blue tracking-[-0.02em] mb-[10px]">4.08.44</div>
-          <div class="grid grid-cols-3 gap-1">
-            <div class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"><div class="text-[0.82rem] font-semibold text-ink">4</div><div class="text-[0.5rem] text-ink-muted font-sans">hours</div></div>
-            <div class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"><div class="text-[0.82rem] font-semibold text-ink">8</div><div class="text-[0.5rem] text-ink-muted font-sans">minutes</div></div>
-            <div class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"><div class="text-[0.82rem] font-semibold text-ink">44</div><div class="text-[0.5rem] text-ink-muted font-sans">seconds</div></div>
-            <div class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"><div class="text-[0.82rem] font-semibold text-ink">248</div><div class="text-[0.5rem] text-ink-muted font-sans">total mins</div></div>
-            <div class="bg-panel2 border border-line rounded-[6px] px-[7px] py-[5px]"><div class="text-[0.82rem] font-semibold text-ink">14924</div><div class="text-[0.5rem] text-ink-muted font-sans">total secs</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
-<!-- Features -->
-<section id="features" class="relative z-[1] py-[90px] sm:py-[60px]">
-  <div class="max-w-content mx-auto px-6">
-    <div class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]">Features</div>
-    <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]">Everything you need<br>for time arithmetic</h2>
-    <p class="text-base text-ink-muted max-w-[500px] mb-12">Built for developers, project managers, freelancers, and anyone who works with time.</p>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5">
+        <script>
+            (function () {
+                const modal = document.getElementById("donateModal");
+                const backdrop = document.getElementById("donateBackdrop");
+                const panel = document.getElementById("donatePanel");
+                const openBtn = document.getElementById("landingDonateBtn");
+                const closeBtn = document.getElementById("donateClose");
+                const copyBtn = document.getElementById("landingCopyUpi");
 
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-blue/[0.12]">⏱</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">Multi-operand Calculator</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Chain multiple time values with + and − operators. Build complex expressions step by step and see the full equation before calculating.</p>
-      </div>
+                function isMobile() {
+                    return window.innerWidth < 640;
+                }
+                function openModal() {
+                    modal.style.display = "flex";
+                    if (!isMobile()) {
+                        panel.style.transform = "scale(0.92)";
+                        panel.style.opacity = "0";
+                    } else {
+                        panel.style.transform = "translateY(100%)";
+                        panel.style.opacity = "1";
+                    }
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            backdrop.style.opacity = "1";
+                            panel.style.transform = "translateY(0) scale(1)";
+                            panel.style.opacity = "1";
+                        });
+                    });
+                }
+                function closeModal() {
+                    backdrop.style.opacity = "0";
+                    if (!isMobile()) panel.style.opacity = "0";
+                    panel.style.transform = isMobile()
+                        ? "translateY(100%)"
+                        : "scale(0.92)";
+                    panel.addEventListener(
+                        "transitionend",
+                        () => {
+                            modal.style.display = "none";
+                        },
+                        { once: true },
+                    );
+                }
 
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-success/[0.12]">💬</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">Natural Language Input</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Type <strong>3h 23m 44s</strong>, <strong>1d 4h</strong>, or <strong>2y 3mo 1w</strong> — no rigid format required. Mix and match any supported units freely.</p>
-      </div>
+                openBtn.addEventListener("click", openModal);
+                closeBtn.addEventListener("click", closeModal);
+                backdrop.addEventListener("click", closeModal);
 
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-amber/[0.12]">💼</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">Work Time Mode</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Instantly convert durations to work days, weeks, and months using an 8h/day · 5d/week · 160h/month reference — perfect for billing.</p>
-      </div>
-
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-purple/[0.12]">🔢</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">5 Output Modes</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Switch between Clock, Natural, Work, Hours-only, and All-formats views. Your preferred mode is saved automatically across sessions.</p>
-      </div>
-
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-red/[0.12]">⌨️</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">Keyboard First</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Press <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">+</kbd> to commit and add, <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">−</kbd> to subtract, <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Enter</kbd> to calculate, <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">⌫</kbd> to undo, and <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Esc</kbd> to clear — never touch the mouse.</p>
-      </div>
-
-      <div class="bg-panel border border-line rounded-[20px] p-7 shadow-card transition-all duration-[180ms] hover:border-blue hover:-translate-y-[3px] hover:shadow-lg">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center text-[1.3rem] mb-4 bg-[rgba(20,184,166,0.12)]">🛡️</div>
-        <h3 class="text-base font-bold text-ink tracking-[-0.02em] mb-2">Fully Private</h3>
-        <p class="text-[0.85rem] text-ink-muted leading-[1.65]">Zero data collection. No network requests. Your mode preference is stored locally in your browser only. No accounts, no tracking, ever.</p>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- Input Formats -->
-<section id="formats" class="relative z-[1] py-[90px] sm:py-[60px] bg-panel border-t border-b border-line">
-  <div class="max-w-content mx-auto px-6">
-    <div class="text-center">
-      <div class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]">Input Formats</div>
-      <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]">Type it your way</h2>
-      <p class="text-base text-ink-muted max-w-[500px] mx-auto mb-[52px] text-center">TimeCalc accepts three flexible input styles. Use whichever feels natural.</p>
-    </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
-
-      <div class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue">
-        <h4 class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]">Dot / Colon format</h4>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">3.23.44</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">3h 23m 44s</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">1:30:00</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">1h 30m</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">0.90</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">1h 30m</span></div>
-        <div class="flex justify-between items-center text-[0.82rem]"><span class="font-mono text-ink font-medium">2.5</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">2h 5m</span></div>
-      </div>
-
-      <div class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue">
-        <h4 class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]">Natural language</h4>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">3h 23m 44s</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">3h 23m 44s</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">2h30m</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">2h 30m</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="font-mono text-ink font-medium">1d 4h 30m</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">1d 4h 30m</span></div>
-        <div class="flex justify-between items-center text-[0.82rem]"><span class="font-mono text-ink font-medium">2y 3mo 1w</span><span class="text-ink-faint text-[0.75rem]">→</span><span class="text-ink-muted text-[0.78rem]">2y 3mo 1w</span></div>
-      </div>
-
-      <div class="bg-panel2 border border-line rounded-xl p-5 transition-colors duration-150 hover:border-blue">
-        <h4 class="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-muted mb-[10px]">Units accepted</h4>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">y</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">yr</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">year</code></span><span class="text-ink-muted text-[0.78rem]">years</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">mo</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">month</code></span><span class="text-ink-muted text-[0.78rem]">months</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">w</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">wk</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">week</code></span><span class="text-ink-muted text-[0.78rem]">weeks</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">d</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">day</code></span><span class="text-ink-muted text-[0.78rem]">days</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">h</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">hr</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">hour</code></span><span class="text-ink-muted text-[0.78rem]">hours</span></div>
-        <div class="flex justify-between items-center mb-[6px] text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">m</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">min</code></span><span class="text-ink-muted text-[0.78rem]">minutes</span></div>
-        <div class="flex justify-between items-center text-[0.82rem]"><span class="space-x-1"><code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">s</code> <code class="font-mono text-[0.8rem] font-medium text-blue-dk bg-blue-lt px-[6px] py-[1px] rounded">sec</code></span><span class="text-ink-muted text-[0.78rem]">seconds</span></div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- Output Modes -->
-<section id="modes" class="relative z-[1] py-[90px] sm:py-[60px]">
-  <div class="max-w-content mx-auto px-6">
-    <div class="text-center">
-      <div class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]">Output Modes</div>
-      <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]">See results the way you need</h2>
-      <p class="text-base text-ink-muted max-w-[500px] mx-auto mb-[52px] text-center">Switch output format with one click. Your choice is remembered for next time.</p>
-    </div>
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-[14px]">
-
-      <div class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5">
-        <div class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-blue/[0.12] text-blue border border-blue/25">⏱ Clock</div>
-        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">Clock format</h3>
-        <p class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]">H.MM.SS — hours can exceed 24. Best for countdowns and timers.</p>
-        <div class="font-mono text-[0.88rem] font-semibold text-blue">4.08.44</div>
-      </div>
-
-      <div class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5">
-        <div class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-success/[0.12] text-success border border-success/25">📅 Natural</div>
-        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">Natural breakdown</h3>
-        <p class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]">Years, months, weeks, days, hours, minutes. Human-readable at a glance.</p>
-        <div class="font-mono text-[0.88rem] font-semibold text-success">3 days 2 hours 15 mins</div>
-      </div>
-
-      <div class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5">
-        <div class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-amber/[0.12] text-amber border border-amber/25">💼 Work</div>
-        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">Work time</h3>
-        <p class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]">8h/day · 5d/week · 160h/month. Ideal for billing, project estimation.</p>
-        <div class="font-mono text-[0.88rem] font-semibold text-amber">2 work days 4 hours</div>
-      </div>
-
-      <div class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5">
-        <div class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-purple/[0.12] text-purple border border-purple/25">🔢 Hours</div>
-        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">Hours only</h3>
-        <p class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]">Total hours as a decimal. Great for timesheets and spreadsheets.</p>
-        <div class="font-mono text-[0.88rem] font-semibold text-purple">20.1458 hours</div>
-      </div>
-
-      <div class="bg-panel border-[1.5px] border-line rounded-xl p-5 shadow-card transition-all duration-[180ms] hover:-translate-y-0.5">
-        <div class="inline-block text-[0.6rem] font-bold uppercase tracking-[0.08em] px-[10px] py-[3px] rounded-full mb-3 bg-ink-2/[0.1] text-ink-2 border border-ink-2/20">🔬 All</div>
-        <h3 class="text-[0.95rem] font-bold text-ink mb-[5px]">All formats</h3>
-        <p class="text-[0.78rem] text-ink-muted leading-[1.5] mb-[10px]">Every output side by side — clock, natural, work, hours, totals, and more.</p>
-        <div class="font-mono text-[0.72rem] font-semibold text-ink-2 leading-[1.7]">Clock · Natural · Work · Hours…</div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- Keyboard Shortcuts -->
-<section id="keyboard" class="relative z-[1] py-[90px] sm:py-[60px] text-center bg-panel border-t border-b border-line">
-  <div class="max-w-content mx-auto px-6">
-    <div class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]">Keyboard Shortcuts</div>
-    <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-[14px]">Built for speed</h2>
-    <p class="text-base text-ink-muted max-w-[500px] mx-auto mb-0 text-center">
-      Open TimeCalc with
-      <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Ctrl+Shift+T</kbd>
-      (or <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">⌘⇧T</kbd> on Mac), then calculate without leaving the keyboard.
-    </p>
-    <div class="flex flex-wrap gap-3 justify-center mt-10">
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">+</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Commit current value &amp; set add mode</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">−</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Set subtract mode</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Enter</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Calculate result</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">⌫</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Undo last entry &amp; restore to input</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Esc</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Clear everything</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">=</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Calculate (alternate key)</span>
-      </div>
-      <div class="bg-panel border border-line rounded-xl px-6 py-4 flex items-center gap-3 shadow-card">
-        <kbd class="inline-block bg-panel2 border-[1.5px] border-line2 rounded-[7px] px-3 py-[5px] font-mono text-[0.82rem] font-semibold text-ink-2 shadow-[0_2px_0_#b3cfe8] min-w-[38px] text-center">Ctrl Z</kbd>
-        <span class="text-[0.82rem] text-ink-muted">Undo last action</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Privacy Strip -->
-<section class="relative z-[1] py-[90px] sm:py-[60px] bg-panel border-t border-b border-line">
-  <div class="max-w-content mx-auto px-6">
-    <div class="text-center mb-10">
-      <div class="text-[0.65rem] font-bold tracking-[0.12em] uppercase text-blue mb-[10px]">Privacy</div>
-      <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15]">Zero data collection</h2>
-    </div>
-    <div class="flex gap-8 flex-wrap justify-center items-start sm:gap-5">
-
-      <div class="flex items-start gap-3 max-w-[240px]">
-        <div class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5">🚫</div>
-        <div>
-          <h4 class="text-[0.88rem] font-bold text-ink mb-[3px]">No tracking</h4>
-          <p class="text-[0.78rem] text-ink-muted leading-[1.55]">No analytics, no telemetry, no usage tracking of any kind.</p>
-        </div>
-      </div>
-
-      <div class="flex items-start gap-3 max-w-[240px]">
-        <div class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5">📡</div>
-        <div>
-          <h4 class="text-[0.88rem] font-bold text-ink mb-[3px]">No network requests</h4>
-          <p class="text-[0.78rem] text-ink-muted leading-[1.55]">TimeCalc runs entirely offline. Nothing is ever sent to a server.</p>
-        </div>
-      </div>
-
-      <div class="flex items-start gap-3 max-w-[240px]">
-        <div class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5">💾</div>
-        <div>
-          <h4 class="text-[0.88rem] font-bold text-ink mb-[3px]">Local storage only</h4>
-          <p class="text-[0.78rem] text-ink-muted leading-[1.55]">Only your output mode preference is saved — in your browser, on your device.</p>
-        </div>
-      </div>
-
-      <div class="flex items-start gap-3 max-w-[240px]">
-        <div class="w-9 h-9 rounded-[10px] shrink-0 bg-success/[0.1] border border-success/20 flex items-center justify-center text-base mt-0.5">🔓</div>
-        <div>
-          <h4 class="text-[0.88rem] font-bold text-ink mb-[3px]">No account required</h4>
-          <p class="text-[0.78rem] text-ink-muted leading-[1.55]">Install and use immediately. No sign-up, no login, no email.</p>
-        </div>
-      </div>
-
-    </div>
-    <div class="text-center mt-8">
-      <a href="privacy.html" class="text-[0.82rem] text-blue no-underline font-medium hover:underline">Read the full privacy policy →</a>
-    </div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section id="cta" class="relative z-[1] py-[100px] text-center">
-  <div class="max-w-content mx-auto px-6">
-    <h2 class="text-[clamp(1.8rem,3.5vw,2.6rem)] font-extrabold tracking-[-0.04em] text-ink leading-[1.15] mb-3">Ready to calculate faster?</h2>
-    <p class="text-base text-ink-muted max-w-[500px] mx-auto mb-9 text-center">Free forever. No sign-up. Works offline. Install in seconds.</p>
-    <div class="flex gap-3 justify-center flex-wrap">
-      <a class="inline-flex items-center gap-2 text-[0.95rem] font-semibold text-white no-underline rounded-full px-7 py-[14px] shadow-blue transition-all duration-150 hover:shadow-[0_8px_28px_rgba(59,158,250,0.48)] hover:-translate-y-0.5"
-         style="background: linear-gradient(135deg, #3b9efa, #1a80e0);"
-         href="#install">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 6l4 4 4-4M2 13h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Install for Brave / Chrome
-      </a>
-      <a class="inline-flex items-center gap-2 text-[0.95rem] font-semibold no-underline rounded-full px-7 py-[13px] border-[1.5px] transition-all duration-150 hover:-translate-y-0.5"
-         style="color:#3b9efa; border-color:#3b9efa; background:rgba(59,158,250,0.06);"
-         href="app.html">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        Try it online
-      </a>
-    </div>
-    <button id="landingDonateBtn"
-      class="mt-7 inline-flex items-center gap-2 text-[0.9rem] font-semibold rounded-full px-6 py-3 border-2 border-amber transition-all duration-150 hover:bg-amber hover:text-white hover:-translate-y-0.5"
-      style="color:#f59e0b; background: rgba(245,158,11,0.06);">
-      ☕ Buy me a coffee
-    </button>
-  </div>
-</section>
-
-<!-- Footer -->
-<footer class="bg-panel border-t border-line py-9">
-  <div class="max-w-content mx-auto px-6 flex items-center justify-between flex-wrap gap-4 sm:flex-col sm:text-center">
-    <a href="#" class="flex items-center gap-2 no-underline">
-      <div class="w-7 h-7 rounded-[7px] flex items-center justify-center text-[0.85rem]"
-           style="background: linear-gradient(140deg, #3b9efa, #1a80e0);">⏱</div>
-      <span class="text-[0.95rem] font-bold tracking-[-0.03em] text-ink">Time<em class="not-italic text-blue">Calc</em></span>
-    </a>
-    <div class="flex gap-5 sm:justify-center">
-      <a href="#features"    class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink">Features</a>
-      <a href="#modes"       class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink">Modes</a>
-      <a href="app.html"     class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink">Try Online</a>
-      <a href="privacy.html" class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink">Privacy Policy</a>
-      <a href="#cta"         class="text-[0.8rem] text-ink-muted no-underline transition-colors duration-150 hover:text-ink">☕ Support</a>
-    </div>
-    <span class="text-[0.75rem] text-ink-faint">© 2025 TimeCalc. Free &amp; open.</span>
-  </div>
-</footer>
-
-<!-- Donate modal -->
-<div id="donateModal"
-  class="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-  style="display:none;">
-  <!-- Backdrop -->
-  <div id="donateBackdrop"
-    class="absolute inset-0 bg-[#0d1f35]/40 backdrop-blur-sm opacity-0 transition-opacity duration-300"></div>
-  <!-- Panel — slides up from bottom on mobile, scale-in on desktop -->
-  <div id="donatePanel"
-    class="relative w-full max-w-sm bg-[#ffffff] rounded-t-3xl sm:rounded-3xl shadow-lg px-7 py-8 flex flex-col items-center gap-4 text-center transition-all duration-[340ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
-    style="transform:translateY(100%); opacity:1;">
-    <!-- Close -->
-    <button id="donateClose"
-      class="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-[#f3f8fe] border border-[#cce0f5] text-[#6a8faa] text-[0.85rem] hover:text-[#0d1f35] transition-colors duration-150">✕</button>
-    <!-- Handle bar (mobile) -->
-    <div class="w-10 h-1 rounded-full bg-[#cce0f5] mb-1 sm:hidden"></div>
-
-    <div class="text-[2.4rem] leading-none">☕</div>
-    <h3 class="text-[1.2rem] font-bold tracking-[-0.03em] text-[#0d1f35] mt-1">Support TimeCalc</h3>
-    <p class="text-[0.8rem] text-[#6a8faa] leading-relaxed max-w-[220px]">
-      If TimeCalc saves you time, consider buying me a coffee!
-    </p>
-    <img src="qr-upi.svg" alt="UPI QR Code" width="200" height="200"
-      class="rounded-2xl border-2 border-[#cce0f5] shadow-md">
-    <p class="text-[0.6rem] font-semibold uppercase tracking-widest text-[#a0bed5]">Scan with any UPI app</p>
-    <div class="flex items-center gap-2 bg-[#f3f8fe] border border-[#cce0f5] rounded-xl px-4 py-2">
-      <span class="font-mono text-[0.78rem] font-semibold text-[#2f4a65]" id="landingUpiId">yourname@upi</span>
-      <button id="landingCopyUpi"
-        class="text-[0.7rem] text-[#6a8faa] hover:text-[#3b9efa] transition-colors duration-150 px-1 rounded">⎘ Copy</button>
-    </div>
-  </div>
-</div>
-
-<script>
-(function(){
-  const modal   = document.getElementById('donateModal');
-  const backdrop= document.getElementById('donateBackdrop');
-  const panel   = document.getElementById('donatePanel');
-  const openBtn = document.getElementById('landingDonateBtn');
-  const closeBtn= document.getElementById('donateClose');
-  const copyBtn = document.getElementById('landingCopyUpi');
-
-  function isMobile(){ return window.innerWidth < 640; }
-  function openModal(){
-    modal.style.display='flex';
-    if(!isMobile()){ panel.style.transform='scale(0.92)'; panel.style.opacity='0'; }
-    else            { panel.style.transform='translateY(100%)'; panel.style.opacity='1'; }
-    requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
-      backdrop.style.opacity='1';
-      panel.style.transform='translateY(0) scale(1)';
-      panel.style.opacity='1';
-    });});
-  }
-  function closeModal(){
-    backdrop.style.opacity='0';
-    if(!isMobile()) panel.style.opacity='0';
-    panel.style.transform= isMobile() ? 'translateY(100%)' : 'scale(0.92)';
-    panel.addEventListener('transitionend',()=>{ modal.style.display='none'; },{once:true});
-  }
-
-  openBtn.addEventListener('click', openModal);
-  closeBtn.addEventListener('click', closeModal);
-  backdrop.addEventListener('click', closeModal);
-
-  copyBtn.addEventListener('click', ()=>{
-    const id = document.getElementById('landingUpiId').textContent;
-    navigator.clipboard.writeText(id).then(()=>{
-      copyBtn.textContent='✓ Copied';
-      copyBtn.style.color='#22c55e';
-      setTimeout(()=>{ copyBtn.textContent='⎘ Copy'; copyBtn.style.color=''; }, 2000);
-    });
-  });
-})();
-</script>
-</body>
+                copyBtn.addEventListener("click", () => {
+                    const id =
+                        document.getElementById("landingUpiId").textContent;
+                    navigator.clipboard.writeText(id).then(() => {
+                        copyBtn.textContent = "✓ Copied";
+                        copyBtn.style.color = "#22c55e";
+                        setTimeout(() => {
+                            copyBtn.textContent = "⎘ Copy";
+                            copyBtn.style.color = "";
+                        }, 2000);
+                    });
+                });
+            })();
+        </script>
+    </body>
 </html>

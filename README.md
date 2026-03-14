@@ -133,6 +133,7 @@ timecalc-extension/
 ├── icon48.png         # Extension management icon 48×48
 ├── icon128.png        # Chrome Web Store icon 128×128
 ├── qr-upi.svg         # UPI QR code for donations
+├── coffee.png         # UPI QR code for donations
 ├── README.md          # This file
 ├── CONTRIBUTING.md    # Contribution guidelines
 ├── LICENSE            # MIT License
